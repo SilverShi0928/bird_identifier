@@ -1,5 +1,6 @@
 import time
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 import requests
 
@@ -43,9 +44,22 @@ class DeepSeekClient:
             title = self._openrouter_title or "雀鳥辨識"
             headers.setdefault("HTTP-Referer", referer)
             # Some Chat Completions gateways expect this attribution header (plus `X-Title` fallback).
-            headers.setdefault("X-OpenRouter-Title", title)
-            headers.setdefault("X-Title", title)
+            safe_title = self._header_safe_latin1(title)
+            headers.setdefault("X-OpenRouter-Title", safe_title)
+            headers.setdefault("X-Title", safe_title)
         return headers
+
+    @staticmethod
+    def _header_safe_latin1(value: str) -> str:
+        """
+        `requests` enforces latin-1 for HTTP header values.
+        Encode non-latin text into an ASCII-safe representation.
+        """
+        try:
+            value.encode("latin-1")
+            return value
+        except UnicodeEncodeError:
+            return quote(value, safe="-_.~ ")
 
     def _merge_openrouter_provider(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         if not self._is_openrouter() or not self._openrouter_provider_ignore:
