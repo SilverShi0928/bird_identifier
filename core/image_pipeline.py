@@ -4,6 +4,15 @@ import io
 from typing import Dict
 
 from PIL import Image, UnidentifiedImageError
+try:
+    from pillow_heif import register_heif_opener
+except ImportError:  # pragma: no cover - optional dependency
+    register_heif_opener = None
+
+
+# Enable HEIC/HEIF decoding via Pillow.
+if register_heif_opener is not None:
+    register_heif_opener()
 
 
 class ImageValidationError(Exception):

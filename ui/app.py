@@ -81,7 +81,7 @@ def _render_ebird_species_page_link(result: dict) -> None:
         return
     species_url = ebird_recent.get("species_page_url", "")
     if species_url:
-        st.markdown(f"[eBird 物種頁]({species_url})")
+        st.link_button("🔗 前往 eBird 查看詳細數據", species_url)
 
 
 def render_deep_analysis_expander(result: dict) -> None:
@@ -196,6 +196,7 @@ def render_result_summary_column(result: dict) -> None:
             st.write(result["reasoning_zh"])
         return
 
+    st.subheader("🔍 識別結果")
     st.success("### ✅ 識別完成")
     primary, en_name, conf = _top1_summary(result)
     delta = f"{conf:.0%} 信心度"
@@ -225,12 +226,12 @@ def render_result_summary_column(result: dict) -> None:
     _render_ebird_species_page_link(result)
 
     st.divider()
-    st.subheader("常見地點")
+    st.markdown("#### 📍 香港地理資訊")
     places_txt = _format_common_places_text(result)
     if places_txt:
-        st.info(f"📍 {places_txt}")
+        st.info(f"💡 常見地點：**{places_txt}**")
     else:
-        st.info("📍 暫無地點資料（可設定翻譯或 eBird token 以豐富結果）。")
+        st.info("💡 暫無地點資料（可設定翻譯或 eBird token 以豐富結果）。")
 
     rest = preds[1:] if len(preds) > 1 else []
     if rest:
@@ -273,9 +274,23 @@ def init_services():
 
 
 def main():
-    st.set_page_config(page_title="雀鳥辨識", layout="wide")
-    st.title("雀鳥辨識")
-    st.caption("拖放圖片到指定區域，支援 jpg / png / webp。")
+    st.set_page_config(page_title="Bird Identifier Pro", page_icon="🐦", layout="wide")
+    st.markdown(
+        """
+        <style>
+        .main { background-color: #f5f7f9; }
+        .stMetric {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.title("🐦 Bird Identifier (OpenRouter)")
+    st.caption("基於 DeepSeek 視覺識別技術 | 香港及亞太地區優化")
     st.session_state.setdefault("bird_identifier_debug_logs", [])
 
     settings, repo, classifier, translator = init_services()
@@ -318,13 +333,13 @@ def main():
         st.dataframe(rows, width="stretch")
         return
 
-    st.subheader("拖放上載區")
     uploaded = st.file_uploader(
-        "將圖片拖入呢個框，或點擊選檔",
-        type=["jpg", "jpeg", "png", "webp"],
+        "拖放鳥類照片至此（或拍照／從相簿選擇）",
+        type=["jpg", "jpeg", "png", "webp", "heic", "heif"],
         accept_multiple_files=False,
-        help=f"最大 {settings.max_upload_mb}MB。拖放到此處即可上載。",
+        help=f"支援 JPG / PNG / WEBP / HEIC / HEIF，最大 {settings.max_upload_mb}MB。",
     )
+    st.caption("手機瀏覽器通常可直接開啟相機拍照或從相簿揀圖。")
 
     if uploaded is None:
         st.info("等待上載圖片...")
@@ -414,12 +429,9 @@ def main():
     if show_result and last_file:
         st.caption(f"目前結果：{last_file}")
 
-    col1, col2 = st.columns([3, 2])
+    col1, col2 = st.columns([1, 1], gap="medium")
     with col1:
-        st.image(file_bytes, caption=uploaded.name, use_container_width=True)
-        if show_result and latest_result:
-            with st.expander("🔍 詳盡分析"):
-                render_deep_analysis_expander(latest_result)
+        st.image(file_bytes, caption="你的攝影作品", use_container_width=True)
 
     with col2:
         notice = st.session_state.get("bird_identifier_cache_notice", "")
@@ -427,12 +439,14 @@ def main():
             st.info(notice)
         if show_result and latest_result:
             render_result_summary_column(latest_result)
+            with st.expander("📝 詳細分析說明 (DeepSeek)", expanded=True):
+                render_deep_analysis_expander(latest_result)
         elif latest_result and last_file and last_file != uploaded.name:
             st.warning("已更換上載檔案，請重新按「開始識別」。")
         else:
             st.info("👆 點擊「開始識別」以取得結果。")
 
-    with st.expander("Debug 日誌"):
+    with st.expander("🛠️ Debug 日誌"):
         logs = st.session_state.get("bird_identifier_debug_logs", [])
         if logs:
             st.code("\n".join(logs), language="text")
