@@ -13,6 +13,27 @@ def _env_if_set(*names: str) -> str | None:
     return None
 
 
+def _secret_if_set(*names: str) -> str | None:
+    """First defined Streamlit secret value, else None."""
+    try:
+        import streamlit as st  # Local import keeps non-UI scripts lightweight.
+    except Exception:  # noqa: BLE001
+        return None
+
+    try:
+        secrets = st.secrets
+    except Exception:  # noqa: BLE001
+        return None
+
+    for name in names:
+        try:
+            if name in secrets:
+                return str(secrets.get(name, "")).strip()
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
 def _env_chain(default: str, *names: str) -> str:
     """First defined env value, else `default`."""
     for name in names:
@@ -64,10 +85,13 @@ class AppSettings:
 
 def load_settings() -> AppSettings:
     load_dotenv(override=True)
-    api_key = _env_first_non_empty(
-        "BIRD_VISION_API_KEY",
-        "OPENROUTER_API_KEY",
-        "DEEPSEEK_API_KEY",
+    api_key = (
+        _secret_if_set("BIRD_VISION_API_KEY", "OPENROUTER_API_KEY", "DEEPSEEK_API_KEY")
+        or _env_first_non_empty(
+            "BIRD_VISION_API_KEY",
+            "OPENROUTER_API_KEY",
+            "DEEPSEEK_API_KEY",
+        )
     )
     base_url = (
         _env_chain(
@@ -120,10 +144,13 @@ def load_settings() -> AppSettings:
         max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "8")),
         max_image_side=int(os.getenv("MAX_IMAGE_SIDE", "1600")),
         db_path=os.getenv("HISTORY_DB_PATH", "bird_identifier.db"),
-        deepseek_translate_api_key=_env_first_non_empty(
+        deepseek_translate_api_key=(
+            _secret_if_set("BIRD_TRANSLATE_API_KEY", "DEEPSEEK_TRANSLATE_API_KEY", "DEEPSEEK_API_KEY")
+            or _env_first_non_empty(
             "BIRD_TRANSLATE_API_KEY",
             "DEEPSEEK_TRANSLATE_API_KEY",
             "DEEPSEEK_API_KEY",
+            )
         ),
         deepseek_translate_base_url=(
             _env_chain("", "BIRD_TRANSLATE_BASE_URL", "DEEPSEEK_TRANSLATE_BASE_URL") or "https://api.deepseek.com"
@@ -133,7 +160,10 @@ def load_settings() -> AppSettings:
             "BIRD_TRANSLATE_MODEL",
             "DEEPSEEK_TRANSLATE_MODEL",
         ),
-        ebird_api_token=os.getenv("EBIRD_API_TOKEN", "").strip(),
+        ebird_api_token=(
+            _secret_if_set("EBIRD_API_TOKEN")
+            or os.getenv("EBIRD_API_TOKEN", "").strip()
+        ),
         ebird_regions=ebird_regions or ["HK", "CN"],
         ebird_recent_max_per_region=int(os.getenv("EBIRD_RECENT_MAX", "10")),
         moss_tts_nano_home=os.getenv("MOSS_TTS_NANO_HOME", "").strip(),
