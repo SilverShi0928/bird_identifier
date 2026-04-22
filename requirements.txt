@@ -1,0 +1,6 @@
+streamlit>=1.44.0
+requests>=2.32.0
+pillow>=10.4.0
+python-dotenv>=1.0.1
+pytest>=8.3.0
+edge-tts>=6.1.16
